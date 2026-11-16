@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ambient & Pulse Companion v3</title>
+
+    <style>
+        :root {
+            --bg: #0b1120;
+            --card: #162032;
+            --panel: #0f172a;
+            --pad-glow: #818cf8;
+            --pulse-color: #2dd4bf;
+            --accent: #38bdf8;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --border: #283548;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 680px;
+        }
+
+        h1 {
+            font-size: 1.35rem;
+            text-align: center;
+            margin: 0 0 4px 0;
+            background: linear-gradient(90deg, var(--pad-glow), var(--pulse-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        .card {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .sync-bar {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr 1.2fr;
+            gap: 8px;
+            align-items: end;
+        }
+
+        @media (max-width: 480px) {
+            .sync-bar {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .sync-bar .bpm-box {
+                grid-column: span 2;
+            }
+        }
+
+        .control-group {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+
+        .control-label strong {
+            color: var(--text);
+        }
+
+        select {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        .bpm-input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bpm-input {
+            width: 90px;
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .bpm-unit {
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            margin: 2px 0;
+        }
+
+        .pad-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--pad-glow);
+        }
+
+        .pulse-section-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--pulse-color);
+        }
+
+        .pad-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn-toggle {
+            background: var(--panel);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-toggle.active {
+            background: rgba(129, 140, 248, 0.22);
+            border-color: var(--pad-glow);
+            color: var(--pad-glow);
+        }
+
+        .btn-toggle.pulse-active {
+            background: rgba(45, 212, 191, 0.18);
+            border-color: var(--pulse-color);
+            color: var(--pulse-color);
+        }
+
+        .xy-pad-wrapper {
+            position: relative;
+            width: 100%;
+            height: 250px;
+            background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        .pulse-pad-wrapper {
+            border-color: rgba(45, 212, 191, 0.35);
+        }
+
+        .xy-grid-lines {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
+            background-size: 25% 25%;
+            pointer-events: none;
+        }
+
+        .xy-axis-label {
+            position: absolute;
+            font-size: 0.68rem;
+            color: rgba(148, 163, 184, 0.6);
+            pointer-events: none;
+        }
+
+        .label-top {
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .label-bottom {
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .label-left {
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .label-right {
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .xy-chord-readout {
+            position: absolute;
+            top: 10px;
+            left: 12px;
+            font-size: 0.82rem;
+            font-weight: bold;
+            color: var(--pad-glow);
+            background: rgba(11, 17, 32, 0.75);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(129, 140, 248, 0.3);
+            pointer-events: none;
+        }
+
+        .pulse-readout {
+            color: var(--pulse-color);
+            border-color: rgba(45, 212, 191, 0.3);
+        }
+
+        .xy-cursor {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle,
+                rgba(129,140,248,0.85) 0%,
+                rgba(129,140,248,0.15) 60%,
+                transparent 100%
+            );
+            border: 2px solid var(--pad-glow);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: 0 0 20px rgba(129, 140, 248, 0.5);
+        }
+
+        .pulse-cursor {
+            background: radial-gradient(
+                circle,
+                rgba(45,212,191,0.85) 0%,
+                rgba(45,212,191,0.15) 60%,
+                transparent 100%
+            );
+            border-color: var(--pulse-color);
+            box-shadow: 0 0 20px rgba(45, 212, 191, 0.5);
+        }
+
+        .xy-cursor.visible {
+            opacity: 1;
+        }
+
+        .pad-sliders {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .pulse-card {
+            border-left: 4px solid var(--pulse-color);
+        }
+
+        .pulse-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pulse-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--pulse-color);
+        }
+
+        .pulse-top-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .btn-mode-toggle {
+            background: var(--panel);
+            color: var(--pulse-color);
+            border: 1px solid var(--pulse-color);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-follow-toggle {
+            background: var(--panel);
+            color: var(--pulse-color);
+            border: 1px solid var(--pulse-color);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .wave-meter-box {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+        }
+
+        .wave-meter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            gap: 8px;
+        }
+
+        .wave-meter-label {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+
+        .btn-wave-freeze {
+            background: var(--panel);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-wave-freeze.active {
+            background: rgba(45, 212, 191, 0.2);
+            border-color: var(--pulse-color);
+            color: var(--pulse-color);
+        }
+
+        .wave-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: #1e293b;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .wave-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(
+                90deg,
+                rgba(45, 212, 191, 0.3),
+                var(--pulse-color)
+            );
+            border-radius: 4px;
+        }
+
+        .pulse-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .pulse-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .pad-sliders {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mode-info {
+            margin-top: 8px;
+            font-size: 0.72rem;
+            color: var(--muted);
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Ambient & Pulse Companion v3</h1>
+
+    <p class="subtitle">
+        コードパッドとパルスパッドを独立操作
+    </p>
+
+    <div class="card">
+        <div class="sync-bar">
+            <div class="control-group bpm-box">
+                <div class="control-label">
+                    <span>テンポ</span>
+                    <strong id="bpmVal">132 BPM</strong>
+                </div>
+                <div class="bpm-input-row">
+                    <input type="number" id="bpmInput" class="bpm-input" min="60" max="200" value="132" inputmode="numeric">
+                    <span class="bpm-unit">BPM</span>
+                </div>
+                <input type="range" id="bpmSlider" min="60" max="200" value="132">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>ルート音</span>
+                </div>
+                <select id="rootSelect">
+                    <option value="C">C</option>
+                    <option value="C#">C#</option>
+                    <option value="D">D</option>
+                    <option value="D#">D#</option>
+                    <option value="E" selected>E</option>
+                    <option value="F">F</option>
+                    <option value="F#">F#</option>
+                    <option value="G">G</option>
+                    <option value="G#">G#</option>
+                    <option value="A">A</option>
+                    <option value="A#">A#</option>
+                    <option value="B">B</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>スケール</span>
+                </div>
+                <select id="scaleSelect">
+                    <option value="chromatic">クロマチック</option>
+                    <option value="major">メジャー</option>
+                    <option value="natural_minor">ナチュラル・マイナー</option>
+                    <option value="dorian" selected>ドリアン (原曲風)</option>
+                    <option value="pentatonic">ペンタトニック</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="pad-header">
+            <div class="section-title">🎹 XY アンビエント・コードパッド</div>
+            <div class="pad-actions">
+                <button class="btn-toggle active" id="btnCodePadPower">パッド: ON</button>
+                <button class="btn-toggle" id="btnCodeHold">📌 HOLD: OFF</button>
+            </div>
+        </div>
+
+        <div class="xy-pad-wrapper" id="codePad">
+            <div class="xy-grid-lines"></div>
+            <div class="xy-axis-label label-top">▲ BRIGHT / 空間広がり</div>
+            <div class="xy-axis-label label-bottom">▼ WARM / 深い残響</div>
+            <div class="xy-axis-label label-left">◀ 低域ボイシング</div>
+            <div class="xy-axis-label label-right">高域ボイシング ▶</div>
+            <div class="xy-chord-readout" id="chordDisplay">Touch Pad to Play</div>
+            <div class="xy-cursor" id="codeCursor"></div>
+        </div>
+
+        <div class="pad-sliders">
+            <div class="control-group">
+                <div class="control-label">
+                    <span>パッド音量</span>
+                    <strong id="padVolVal">65%</strong>
+                </div>
+                <input type="range" id="padVolSlider" min="0" max="100" value="65">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>空間リバーブ深さ</span>
+                    <strong id="reverbVal">75%</strong>
+                </div>
+                <input type="range" id="reverbSlider" min="10" max="100" value="75">
+            </div>
+        </div>
+    </div>
+
+    <div class="card pulse-card">
+        <div class="pad-header">
+            <div class="pulse-section-title">🌊 パルスパッド</div>
+            <div class="pad-actions">
+                <button class="btn-toggle pulse-active" id="btnPulsePadPower">パッド: ON</button>
+                <button class="btn-toggle" id="btnPulseHold">📌 HOLD: OFF</button>
+            </div>
+        </div>
+
+        <div class="xy-pad-wrapper pulse-pad-wrapper" id="pulsePad">
+            <div class="xy-grid-lines"></div>
+            <div class="xy-axis-label label-top">▲ BRIGHT / 空間広がり</div>
+            <div class="xy-axis-label label-bottom">▼ WARM / 深い残響</div>
+            <div class="xy-axis-label label-left">◀ 低域ボイシング</div>
+            <div class="xy-axis-label label-right">高域ボイシング ▶</div>
+            <div class="xy-chord-readout pulse-readout" id="pulseDisplay">Touch Pulse Pad</div>
+            <div class="xy-cursor pulse-cursor" id="pulseCursor"></div>
+        </div>
+    </div>
+
+    <div class="card pulse-card">
+        <div class="pulse-header">
+            <div class="pulse-title">🌊 16分ソフト・パルス</div>
+            <div class="pulse-top-actions">
+                <button class="btn-mode-toggle" id="btnPulseMode">モード: アルペジオ</button>
+                <button class="btn-follow-toggle" id="btnPulsePitchMode">音程: 追従</button>
+            </div>
+        </div>
+
+        <div class="mode-info" id="pulseModeInfo">追従: コードパッドの音程を使用</div>
+
+        <div class="wave-meter-box">
+            <div class="wave-meter-header">
+                <div class="wave-meter-label">
+                    ボリュームの波 (Swell LFO):
+                    <strong id="wavePctText" style="color:var(--pulse-color);">0%</strong>
+                </div>
+                <button class="btn-wave-freeze" id="btnWaveFreeze">⏸ 波をストップ (ホールド)</button>
+            </div>
+            <div class="wave-bar-bg">
+                <div class="wave-bar-fill" id="waveBarFill"></div>
+            </div>
+        </div>
+
+        <div class="pulse-controls">
+            <div class="control-group">
+                <div class="control-label">
+                    <span>波の速度 (周期)</span>
+                    <strong id="waveSpeedVal">6.0 秒周期</strong>
+                </div>
+                <input type="range" id="waveSpeedSlider" min="1.0" max="16.0" step="0.5" value="6.0">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>パルス最大音量</span>
+                    <strong id="pulseMaxVolVal">55%</strong>
+                </div>
+                <input type="range" id="pulseMaxVolSlider" min="10" max="100" value="55">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const NOTE_NAMES = [
+        'C', 'C#', 'D', 'D#', 'E', 'F',
+        'F#', 'G', 'G#', 'A', 'A#', 'B'
+    ];
+
+    const SCALE_INTERVALS = {
+        chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        major: [0, 2, 4, 5, 7, 9, 11],
+        natural_minor: [0, 2, 3, 5, 7, 8, 10],
+        dorian: [0, 2, 3, 5, 7, 9, 10],
+        pentatonic: [0, 2, 7, 9, 11]
+    };
+
+    let baseBpm = 132;
+    let currentRoot = 'E';
+    let currentScale = 'dorian';
+
+    let isCodePadOn = true;
+    let isCodePadDown = false;
+    let isCodeHold = false;
+    let isCodeSoundActive = false;
+    let codeNormX = 0.3;
+    let codeNormY = 0.5;
+    let isCodePitchSourceActive = true;
+
+    let isPulsePadOn = true;
+    let isPulsePadDown = false;
+    let isPulseHold = false;
+    let pulseNormX = 0.3;
+    let pulseNormY = 0.5;
+
+    let padMasterVol = 0.65;
+    let reverbAmount = 0.75;
+
+    let audioCtx = null;
+    let dryBus = null;
+    let wetBus = null;
+    let masterOut = null;
+
+    let padVoices = [];
+    let padFilter = null;
+    let padEnvGain = null;
+
+    let currentChordMidis = [52, 59, 62, 66];
+    let pulseChordMidis = [52, 59, 62, 66];
+
+    let isPulsePlaying = false;
+    let pulseMode = 'arpeggio';
+    let pulsePitchMode = 'follow';
+
+    let wavePeriodSec = 6.0;
+    let pulseMaxVol = 0.55;
+    let isWaveFrozen = false;
+    let frozenWaveAmp = 0.5;
+    let frozenWavePhase = 0;
+
+    let pulseTimerID = null;
+    let nextPulseTime = 0;
+    let pulseStepCount = 0;
+    let waveStartTime = 0;
+    let frozenElapsedTime = 0;
+    let animFrameID = null;
+
+    /*
+     * パルス停止時のフェード状態。
+     *
+     * 16分音符を12回分かけてフェードアウト。
+     * 4音アルペジオなら約3周分。
+     */
+    let isPulseFading = false;
+    let pulseFadeStepsRemaining = 0;
+    const PULSE_FADE_STEPS = 12;
+
+    function midiToFreq(midi) {
+        return 440.0 * Math.pow(2, (midi - 69) / 12.0);
+    }
+
+    function midiToName(midi) {
+        return `${NOTE_NAMES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+    }
+
+    function computeChordFromXY(x) {
+        const rootIdx = NOTE_NAMES.indexOf(currentRoot);
+        const intervals = SCALE_INTERVALS[currentScale];
+        const baseMidi = 48 + rootIdx;
+        let scaleNotes = [];
+
+        for (let oct = 0; oct < 3; oct++) {
+            for (let iv of intervals) {
+                scaleNotes.push(baseMidi + oct * 12 + iv);
+            }
+        }
+
+        const maxDeg = Math.max(1, intervals.length - 1);
+
+        const deg = Math.min(
+            maxDeg,
+            Math.floor(x * (maxDeg + 0.99))
+        );
+
+        const n1 = scaleNotes[deg] || baseMidi;
+        const n2 = scaleNotes[deg + 2] || (n1 + 7);
+        const n3 = scaleNotes[deg + 4] || (n1 + 12);
+        const n4 = scaleNotes[deg + 6] || (n1 + 14);
+
+        return [n1, n2, n3, n4];
+    }
+
+    function computePulseChordFromXY(x, y) {
+        return computeChordFromXY(x);
+    }
+
+    function getPulseSourceChord() {
+        if (
+            pulsePitchMode === 'follow' &&
+            isCodePitchSourceActive
+        ) {
+            return currentChordMidis;
+        }
+
+        return pulseChordMidis;
+    }
+
+    function updatePulseDisplay() {
+        const display = document.getElementById('pulseDisplay');
+
+        if (!display) {
+            return;
+        }
+
+        if (!isPulsePadOn) {
+            display.textContent = 'Pad is OFF';
+            return;
+        }
+
+        if (
+            pulsePitchMode === 'follow' &&
+            isCodePitchSourceActive
+        ) {
+            display.textContent = 'コードパッドに追従';
+        } else {
+            display.textContent =
+                pulseChordMidis.map(midiToName).join(' - ');
+        }
+    }
+
+    function syncPulsePadToCodePad() {
+        pulseNormX = codeNormX;
+        pulseNormY = codeNormY;
+
+        const pulseCursor =
+            document.getElementById('pulseCursor');
+
+        if (pulseCursor) {
+            pulseCursor.style.left =
+                `${pulseNormX * 100}%`;
+
+            pulseCursor.style.top =
+                `${(1.0 - pulseNormY) * 100}%`;
+        }
+
+        pulseChordMidis =
+            computePulseChordFromXY(
+                pulseNormX,
+                pulseNormY
+            );
+    }
+
+    function createReverbIR(ctx, duration = 5.0, decay = 2.4) {
+        const rate = ctx.sampleRate;
+        const len = Math.floor(rate * duration);
+        const buf = ctx.createBuffer(2, len, rate);
+
+        for (let ch = 0; ch < 2; ch++) {
+            const data = buf.getChannelData(ch);
+
+            for (let i = 0; i < len; i++) {
+                const t = i / rate;
+
+                const env =
+                    Math.pow(1 - i / len, decay) *
+                    Math.min(1, t / 0.06);
+
+                data[i] =
+                    (Math.random() * 2 - 1) *
+                    env;
+            }
+        }
+
+        return buf;
+    }
+
+    function initAudio() {
+        if (audioCtx) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            return;
+        }
+
+        audioCtx =
+            new (
+                window.AudioContext ||
+                window.webkitAudioContext
+            )();
+
+        const convolver =
+            audioCtx.createConvolver();
+
+        convolver.buffer =
+            createReverbIR(
+                audioCtx,
+                5.2,
+                2.3
+            );
+
+        const revLowpass =
+            audioCtx.createBiquadFilter();
+
+        revLowpass.type = 'lowpass';
+        revLowpass.frequency.value = 3200;
+
+        dryBus = audioCtx.createGain();
+        dryBus.gain.value = 0.55;
+
+        wetBus = audioCtx.createGain();
+        wetBus.gain.value = reverbAmount * 0.85;
+
+        const comp =
+            audioCtx.createDynamicsCompressor();
+
+        comp.threshold.value = -14;
+        comp.ratio.value = 4;
+
+        masterOut = audioCtx.createGain();
+        masterOut.gain.value = 0.9;
+
+        dryBus.connect(comp);
+        convolver.connect(revLowpass);
+        revLowpass.connect(wetBus);
+        wetBus.connect(comp);
+        comp.connect(masterOut);
+        masterOut.connect(audioCtx.destination);
+
+        padFilter =
+            audioCtx.createBiquadFilter();
+
+        padFilter.type = 'lowpass';
+        padFilter.frequency.value = 900;
+        padFilter.Q.value = 1.2;
+
+        padEnvGain = audioCtx.createGain();
+        padEnvGain.gain.value = 0.0001;
+
+        padFilter.connect(padEnvGain);
+        padEnvGain.connect(dryBus);
+        padEnvGain.connect(convolver);
+
+        const pans = [-0.55, 0.55, -0.25, 0.25];
+
+        currentChordMidis =
+            computeChordFromXY(codeNormX);
+
+        pulseChordMidis =
+            computePulseChordFromXY(
+                pulseNormX,
+                pulseNormY
+            );
+
+        for (let i = 0; i < 4; i++) {
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const voiceGain = audioCtx.createGain();
+            const panner = audioCtx.createStereoPanner();
+
+            osc1.type = 'triangle';
+            osc2.type = 'sine';
+
+            osc1.detune.value = -5;
+            osc2.detune.value = 6;
+
+            const freq =
+                midiToFreq(
+                    currentChordMidis[i]
+                );
+
+            osc1.frequency.value = freq;
+            osc2.frequency.value = freq * 2.0;
+
+            const osc2Gain =
+                audioCtx.createGain();
+
+            osc2Gain.gain.value = 0.22;
+            voiceGain.gain.value = 0.16;
+            panner.pan.value = pans[i];
+
+            osc1.connect(voiceGain);
+            osc2.connect(osc2Gain);
+            osc2Gain.connect(voiceGain);
+            voiceGain.connect(panner);
+            panner.connect(padFilter);
+
+            osc1.start();
+            osc2.start();
+
+            padVoices.push({
+                osc1,
+                osc2,
+                panner
+            });
+        }
+
+        audioCtx.sharedConvolver = convolver;
+    }
+
+    function updateCodePadSound(x, y, immediate = false) {
+        if (!audioCtx) {
+            return;
+        }
+
+        const now = audioCtx.currentTime;
+
+        const glide =
+            immediate
+                ? 0.02
+                : 0.14;
+
+        currentChordMidis =
+            computeChordFromXY(x);
+
+        if (
+            isCodePadOn &&
+            isCodeSoundActive
+        ) {
+            document.getElementById('chordDisplay').textContent =
+                currentChordMidis
+                    .map(midiToName)
+                    .join(' - ');
+        }
+
+        if (
+            pulsePitchMode === 'follow' &&
+            isCodePitchSourceActive
+        ) {
+            syncPulsePadToCodePad();
+            updatePulseDisplay();
+        }
+
+        padVoices.forEach((v, i) => {
+            const freq =
+                midiToFreq(
+                    currentChordMidis[i]
+                );
+
+            v.osc1.frequency.setTargetAtTime(
+                freq,
+                now,
+                glide
+            );
+
+            v.osc2.frequency.setTargetAtTime(
+                freq * 2.0,
+                now,
+                glide
+            );
+        });
+
+        const cutoff =
+            260 *
+            Math.pow(
+                10,
+                y * 1.0
+            );
+
+        padFilter.frequency.setTargetAtTime(
+            cutoff,
+            now,
+            0.08
+        );
+    }
+
+    function setCodeSoundActive(active) {
+        if (!audioCtx) {
+            return;
+        }
+
+        if (
+            active &&
+            !isCodePadOn
+        ) {
+            active = false;
+        }
+
+        isCodeSoundActive = active;
+
+        const now =
+            audioCtx.currentTime;
+
+        padEnvGain.gain.cancelScheduledValues(now);
+
+        if (active) {
+            isCodePitchSourceActive = true;
+
+            updateCodePadSound(
+                codeNormX,
+                codeNormY,
+                false
+            );
+
+            /*
+             * コードパッドの立ち上がりは
+             * ゆっくり0.5秒。
+             */
+            padEnvGain.gain.setTargetAtTime(
+                Math.max(
+                    0.001,
+                    padMasterVol * 0.85
+                ),
+                now,
+                0.5
+            );
+        } else {
+            padEnvGain.gain.setTargetAtTime(
+                0.0001,
+                now,
+                0.8
+            );
+
+            if (!isCodeHold) {
+                document.getElementById('chordDisplay').textContent =
+                    isCodePadOn
+                        ? 'Touch Pad to Play'
+                        : 'Pad is OFF';
+            }
+        }
+    }
+
+    /*
+     * pulseFadeAmount:
+     *
+     * 通常時 1.0
+     * フェード時は1.0 → 0.0へ
+     *
+     * 1発ごとの音量を下げることで、
+     * リバーブだけが残るのではなく、
+     * 「演奏そのもの」が少しずつ消えていく。
+     */
+    function getPulseFadeAmount() {
+        if (!isPulseFading) {
+            return 1.0;
+        }
+
+        if (pulseFadeStepsRemaining <= 0) {
+            return 0.0;
+        }
+
+        return (
+            pulseFadeStepsRemaining /
+            PULSE_FADE_STEPS
+        );
+    }
+
+    function triggerSoftPulseNote(
+        freq,
+        time,
+        waveAmp,
+        stepIdx,
+        fadeAmount = 1.0
+    ) {
+        if (waveAmp <= 0.01 || fadeAmount <= 0.01) {
+            return;
+        }
+
+        const stepDur =
+            (60.0 / baseBpm) / 4.0;
+
+        const attack =
+            Math.min(
+                0.045,
+                stepDur * 0.38
+            );
+
+        const release =
+            Math.max(
+                0.28,
+                stepDur * 2.4
+            );
+
+        const osc =
+            audioCtx.createOscillator();
+
+        const filter =
+            audioCtx.createBiquadFilter();
+
+        const env =
+            audioCtx.createGain();
+
+        const panner =
+            audioCtx.createStereoPanner();
+
+        osc.type = 'sine';
+
+        osc.frequency.setValueAtTime(
+            freq,
+            time
+        );
+
+        filter.type = 'lowpass';
+
+        filter.frequency.setValueAtTime(
+            1100 +
+            waveAmp * 900,
+            time
+        );
+
+        panner.pan.setValueAtTime(
+            Math.sin(stepIdx * 0.5) * 0.45,
+            time
+        );
+
+        const peak =
+            waveAmp *
+            pulseMaxVol *
+            0.22 *
+            fadeAmount;
+
+        env.gain.setValueAtTime(
+            0.0001,
+            time
+        );
+
+        env.gain.linearRampToValueAtTime(
+            Math.max(0.0002, peak),
+            time + attack
+        );
+
+        env.gain.exponentialRampToValueAtTime(
+            0.0001,
+            time +
+            attack +
+            release
+        );
+
+        osc.connect(filter);
+        filter.connect(env);
+        env.connect(panner);
+
+        panner.connect(dryBus);
+
+        if (audioCtx.sharedConvolver) {
+            panner.connect(
+                audioCtx.sharedConvolver
+            );
+        }
+
+        osc.start(time);
+
+        osc.stop(
+            time +
+            attack +
+            release +
+            0.05
+        );
+    }
+
+    function getLiveWaveAmplitude(atTime) {
+        const elapsed =
+            (
+                atTime -
+                waveStartTime
+            ) +
+            frozenElapsedTime;
+
+        const phase =
+            (
+                elapsed /
+                wavePeriodSec
+            ) *
+            Math.PI *
+            2;
+
+        return (
+            0.5 *
+            (
+                1.0 -
+                Math.cos(phase)
+            )
+        );
+    }
+
+    function getWaveAmplitude(atTime) {
+        if (isWaveFrozen) {
+            return frozenWaveAmp;
+        }
+
+        return getLiveWaveAmplitude(atTime);
+    }
+
+    function getLiveWavePhase(atTime) {
+        const elapsed =
+            (
+                atTime -
+                waveStartTime
+            ) +
+            frozenElapsedTime;
+
+        const phase =
+            (
+                elapsed /
+                wavePeriodSec
+            ) *
+            Math.PI *
+            2;
+
+        let normalized =
+            phase %
+            (Math.PI * 2);
+
+        if (normalized < 0) {
+            normalized += Math.PI * 2;
+        }
+
+        return normalized;
+    }
+
+    function pulseScheduler() {
+        if (
+            !isPulsePlaying &&
+            !isPulseFading
+        ) {
+            return;
+        }
+
+        const lookahead = 0.1;
+
+        const stepDur =
+            (60.0 / baseBpm) / 4.0;
+
+        while (
+            nextPulseTime <
+            audioCtx.currentTime +
+            lookahead
+        ) {
+            const waveAmp =
+                getWaveAmplitude(
+                    nextPulseTime
+                );
+
+            const fadeAmount =
+                getPulseFadeAmount();
+
+            /*
+             * フェード中は発音そのものを
+             * 少しずつ小さくする。
+             */
+            if (fadeAmount > 0.01) {
+                let freq = 329.63;
+
+                const sourceChord =
+                    getPulseSourceChord();
+
+                if (pulseMode === 'arpeggio') {
+                    const chordNoteMidi =
+                        sourceChord[
+                            pulseStepCount %
+                            sourceChord.length
+                        ] + 12;
+
+                    freq =
+                        midiToFreq(
+                            chordNoteMidi
+                        );
+                } else {
+                    const rootNoteMidi =
+                        sourceChord[0];
+
+                    freq =
+                        midiToFreq(
+                            rootNoteMidi + 12
+                        );
+                }
+
+                triggerSoftPulseNote(
+                    freq,
+                    nextPulseTime,
+                    waveAmp,
+                    pulseStepCount,
+                    fadeAmount
+                );
+            }
+
+            nextPulseTime += stepDur;
+            pulseStepCount++;
+
+            if (isPulseFading) {
+                pulseFadeStepsRemaining--;
+
+                if (
+                    pulseFadeStepsRemaining <= 0
+                ) {
+                    isPulseFading = false;
+                    isPulsePlaying = false;
+                    break;
+                }
+            }
+        }
+
+        if (
+            isPulsePlaying ||
+            isPulseFading
+        ) {
+            pulseTimerID =
+                setTimeout(
+                    pulseScheduler,
+                    25
+                );
+        } else {
+            pulseTimerID = null;
+        }
+    }
+
+    function startPulse() {
+        if (
+            !audioCtx ||
+            !isPulsePadOn
+        ) {
+            return;
+        }
+
+        /*
+         * フェード中にもう一度触った場合は
+         * フェードをキャンセルして通常再生へ戻す。
+         */
+        isPulseFading = false;
+        pulseFadeStepsRemaining = 0;
+
+        if (isPulsePlaying) {
+            return;
+        }
+
+        isPulsePlaying = true;
+
+        waveStartTime =
+            audioCtx.currentTime;
+
+        frozenElapsedTime = 0;
+
+        nextPulseTime =
+            audioCtx.currentTime +
+            0.05;
+
+        pulseStepCount = 0;
+
+        pulseScheduler();
+        updateWaveVisual();
+    }
+
+    function stopPulse() {
+        /*
+         * すでに停止処理中なら何もしない。
+         */
+        if (
+            !isPulsePlaying &&
+            !isPulseFading
+        ) {
+            return;
+        }
+
+        /*
+         * 新しい通常演奏はここで終了。
+         *
+         * ただし isPulseFading をONにして、
+         * 12個の16分音符を小さくしながら
+         * フェードアウトさせる。
+         */
+        isPulsePlaying = false;
+        isPulseFading = true;
+        pulseFadeStepsRemaining =
+            PULSE_FADE_STEPS;
+
+        /*
+         * 現在位置からフェードを開始。
+         */
+        nextPulseTime =
+            Math.max(
+                nextPulseTime,
+                audioCtx.currentTime + 0.01
+            );
+
+        /*
+         * 波表示は演奏終了扱いなので0へ。
+         * 実際の音はスケジューラーが
+         * 12ステップ分だけ続く。
+         */
+        if (animFrameID) {
+            cancelAnimationFrame(animFrameID);
+            animFrameID = null;
+        }
+
+        document.getElementById('waveBarFill').style.width = '0%';
+        document.getElementById('wavePctText').textContent = '0%';
+
+        if (
+            !pulseTimerID
+        ) {
+            pulseScheduler();
+        }
+    }
+
+    function updateWaveVisual() {
+        if (
+            !isPulsePlaying ||
+            !audioCtx
+        ) {
+            document.getElementById('waveBarFill').style.width = '0%';
+            document.getElementById('wavePctText').textContent = '0%';
+            return;
+        }
+
+        const amp =
+            getWaveAmplitude(
+                audioCtx.currentTime
+            );
+
+        const pct =
+            Math.round(
+                amp * 100
+            );
+
+        document.getElementById('waveBarFill').style.width =
+            `${pct}%`;
+
+        document.getElementById('wavePctText').textContent =
+            `${pct}%`;
+
+        animFrameID =
+            requestAnimationFrame(
+                updateWaveVisual
+            );
+    }
+
+    window.addEventListener(
+        'DOMContentLoaded',
+        () => {
+            const codePad =
+                document.getElementById('codePad');
+
+            const codeCursor =
+                document.getElementById('codeCursor');
+
+            const pulsePad =
+                document.getElementById('pulsePad');
+
+            const pulseCursor =
+                document.getElementById('pulseCursor');
+
+            pulseChordMidis =
+                computePulseChordFromXY(
+                    pulseNormX,
+                    pulseNormY
+                );
+
+            function handleCodePointer(e) {
+                const rect =
+                    codePad.getBoundingClientRect();
+
+                codeNormX =
+                    Math.max(
+                        0,
+                        Math.min(
+                            1,
+                            (
+                                e.clientX -
+                                rect.left
+                            ) /
+                            rect.width
+                        )
+                    );
+
+                codeNormY =
+                    Math.max(
+                        0,
+                        Math.min(
+                            1,
+                            1.0 -
+                            (
+                                e.clientY -
+                                rect.top
+                            ) /
+                            rect.height
+                        )
+                    );
+
+                codeCursor.style.left =
+                    `${codeNormX * 100}%`;
+
+                codeCursor.style.top =
+                    `${(
+                        1.0 -
+                        codeNormY
+                    ) * 100}%`;
+
+                codeCursor.classList.add('visible');
+
+                isCodePitchSourceActive = true;
+
+                updateCodePadSound(
+                    codeNormX,
+                    codeNormY,
+                    false
+                );
+            }
+
+            codePad.addEventListener(
+                'pointerdown',
+                (e) => {
+                    initAudio();
+
+                    codePad.setPointerCapture(
+                        e.pointerId
+                    );
+
+                    isCodePadDown = true;
+
+                    handleCodePointer(e);
+
+                    if (isCodePadOn) {
+                        setCodeSoundActive(true);
+                    } else {
+                        isCodeSoundActive = false;
+                    }
+                }
+            );
+
+            codePad.addEventListener(
+                'pointermove',
+                (e) => {
+                    if (!isCodePadDown) {
+                        return;
+                    }
+
+                    handleCodePointer(e);
+                }
+            );
+
+            function endCodeTouch() {
+                if (!isCodePadDown) {
+                    return;
+                }
+
+                isCodePadDown = false;
+
+                if (!isCodeHold) {
+                    codeCursor.classList.remove('visible');
+
+                    if (isCodeSoundActive) {
+                        setCodeSoundActive(false);
+                    }
+                }
+            }
+
+            codePad.addEventListener('pointerup', endCodeTouch);
+            codePad.addEventListener('pointercancel', endCodeTouch);
+
+            const btnCodePadPower =
+                document.getElementById(
+                    'btnCodePadPower'
+                );
+
+            btnCodePadPower.addEventListener(
+                'click',
+                () => {
+                    initAudio();
+
+                    isCodePadOn =
+                        !isCodePadOn;
+
+                    if (!isCodePadOn) {
+                        isCodePitchSourceActive = false;
+                        isCodePadDown = false;
+                        isCodeSoundActive = false;
+                        isCodeHold = false;
+
+                        document
+                            .getElementById('btnCodeHold')
+                            .classList.remove('active');
+
+                        document
+                            .getElementById('btnCodeHold')
+                            .textContent =
+                            '📌 HOLD: OFF';
+
+                        codeCursor.classList.remove('visible');
+
+                        setCodeSoundActive(false);
+
+                        document
+                            .getElementById('chordDisplay')
+                            .textContent =
+                            'Pad is OFF';
+
+                        updatePulseDisplay();
+                    } else {
+                        isCodePitchSourceActive = false;
+                        isCodeSoundActive = false;
+
+                        document
+                            .getElementById('chordDisplay')
+                            .textContent =
+                            'Touch Pad to Play';
+
+                        updatePulseDisplay();
+                    }
+
+                    btnCodePadPower.classList.toggle(
+                        'active',
+                        isCodePadOn
+                    );
+
+                    btnCodePadPower.textContent =
+                        isCodePadOn
+                            ? 'パッド: ON'
+                            : 'パッド: OFF';
+                }
+            );
+
+            const btnCodeHold =
+                document.getElementById(
+                    'btnCodeHold'
+                );
+
+            btnCodeHold.addEventListener(
+                'click',
+                () => {
+                    isCodeHold = !isCodeHold;
+
+                    btnCodeHold.classList.toggle(
+                        'active',
+                        isCodeHold
+                    );
+
+                    btnCodeHold.textContent =
+                        isCodeHold
+                            ? '📌 HOLD: ON'
+                            : '📌 HOLD: OFF';
+
+                    if (!isCodeHold) {
+                        if (!isCodePadDown) {
+                            codeCursor.classList.remove('visible');
+
+                            if (isCodeSoundActive) {
+                                setCodeSoundActive(false);
+                            }
+                        }
+                    }
+                }
+            );
+
+            function handlePulsePointer(e) {
+                /*
+                 * 追従モードでコードがONなら、
+                 * パルスパッドはコードパッドと同じ位置に固定。
+                 *
+                 * この状態ではパルスパッドを触っても
+                 * XY位置を変更しない。
+                 */
+                if (
+                    pulsePitchMode === 'follow' &&
+                    isCodePitchSourceActive
+                ) {
+                    syncPulsePadToCodePad();
+                    return;
+                }
+
+                const rect =
+                    pulsePad.getBoundingClientRect();
+
+                pulseNormX =
+                    Math.max(
+                        0,
+                        Math.min(
+                            1,
+                            (
+                                e.clientX -
+                                rect.left
+                            ) /
+                            rect.width
+                        )
+                    );
+
+                pulseNormY =
+                    Math.max(
+                        0,
+                        Math.min(
+                            1,
+                            1.0 -
+                            (
+                                e.clientY -
+                                rect.top
+                            ) /
+                            rect.height
+                        )
+                    );
+
+                pulseCursor.style.left =
+                    `${pulseNormX * 100}%`;
+
+                pulseCursor.style.top =
+                    `${(
+                        1.0 -
+                        pulseNormY
+                    ) * 100}%`;
+
+                pulseCursor.classList.add('visible');
+
+                /*
+                 * コードがOFFなら、
+                 * 追従モードでもパルスパッドを
+                 * 独立操作できる。
+                 */
+                pulseChordMidis =
+                    computePulseChordFromXY(
+                        pulseNormX,
+                        pulseNormY
+                    );
+
+                document
+                    .getElementById('pulseDisplay')
+                    .textContent =
+                    pulseChordMidis
+                        .map(midiToName)
+                        .join(' - ');
+            }
+
+            pulsePad.addEventListener(
+                'pointerdown',
+                (e) => {
+                    initAudio();
+
+                    pulsePad.setPointerCapture(
+                        e.pointerId
+                    );
+
+                    isPulsePadDown = true;
+
+                    handlePulsePointer(e);
+
+                    if (isPulsePadOn) {
+                        startPulse();
+                    }
+                }
+            );
+
+            pulsePad.addEventListener(
+                'pointermove',
+                (e) => {
+                    if (!isPulsePadDown) {
+                        return;
+                    }
+
+                    handlePulsePointer(e);
+                }
+            );
+
+            function endPulseTouch() {
+                if (!isPulsePadDown) {
+                    return;
+                }
+
+                isPulsePadDown = false;
+
+                if (!isPulseHold) {
+                    pulseCursor.classList.remove('visible');
+                    stopPulse();
+                }
+            }
+
+            pulsePad.addEventListener('pointerup', endPulseTouch);
+            pulsePad.addEventListener('pointercancel', endPulseTouch);
+
+            const btnPulsePadPower =
+                document.getElementById(
+                    'btnPulsePadPower'
+                );
+
+            btnPulsePadPower.addEventListener(
+                'click',
+                () => {
+                    initAudio();
+
+                    isPulsePadOn =
+                        !isPulsePadOn;
+
+                    if (!isPulsePadOn) {
+                        isPulsePadDown = false;
+                        isPulseHold = false;
+
+                        document
+                            .getElementById('btnPulseHold')
+                            .classList.remove('active');
+
+                        document
+                            .getElementById('btnPulseHold')
+                            .textContent =
+                            '📌 HOLD: OFF';
+
+                        pulseCursor.classList.remove('visible');
+
+                        stopPulse();
+
+                        btnPulsePadPower.classList.remove(
+                            'pulse-active'
+                        );
+
+                        document
+                            .getElementById('pulseDisplay')
+                            .textContent =
+                            'Pad is OFF';
+                    } else {
+                        btnPulsePadPower.classList.add(
+                            'pulse-active'
+                        );
+
+                        updatePulseDisplay();
+                    }
+
+                    btnPulsePadPower.textContent =
+                        isPulsePadOn
+                            ? 'パッド: ON'
+                            : 'パッド: OFF';
+                }
+            );
+
+            const btnPulseHold =
+                document.getElementById(
+                    'btnPulseHold'
+                );
+
+            btnPulseHold.addEventListener(
+                'click',
+                () => {
+                    isPulseHold = !isPulseHold;
+
+                    btnPulseHold.classList.toggle(
+                        'active',
+                        isPulseHold
+                    );
+
+                    btnPulseHold.textContent =
+                        isPulseHold
+                            ? '📌 HOLD: ON'
+                            : '📌 HOLD: OFF';
+
+                    if (!isPulseHold) {
+                        if (!isPulsePadDown) {
+                            pulseCursor.classList.remove('visible');
+                            stopPulse();
+                        }
+                    }
+                }
+            );
+
+            const bpmSlider =
+                document.getElementById('bpmSlider');
+
+            const bpmInput =
+                document.getElementById('bpmInput');
+
+            const bpmVal =
+                document.getElementById('bpmVal');
+
+            function setBpm(value) {
+                let bpm =
+                    parseInt(
+                        value,
+                        10
+                    );
+
+                if (Number.isNaN(bpm)) {
+                    return;
+                }
+
+                bpm =
+                    Math.max(
+                        60,
+                        Math.min(
+                            200,
+                            bpm
+                        )
+                    );
+
+                baseBpm = bpm;
+                bpmInput.value = bpm;
+                bpmSlider.value = bpm;
+                bpmVal.textContent = `${bpm} BPM`;
+            }
+
+            bpmSlider.addEventListener(
+                'input',
+                (e) => {
+                    setBpm(e.target.value);
+                }
+            );
+
+            bpmInput.addEventListener(
+                'change',
+                (e) => {
+                    setBpm(e.target.value);
+                }
+            );
+
+            bpmInput.addEventListener(
+                'keydown',
+                (e) => {
+                    if (e.key === 'Enter') {
+                        setBpm(e.target.value);
+                        bpmInput.blur();
+                    }
+                }
+            );
+
+            document
+                .getElementById('rootSelect')
+                .addEventListener(
+                    'change',
+                    (e) => {
+                        currentRoot = e.target.value;
+
+                        updateCodePadSound(
+                            codeNormX,
+                            codeNormY,
+                            false
+                        );
+
+                        pulseChordMidis =
+                            computePulseChordFromXY(
+                                pulseNormX,
+                                pulseNormY
+                            );
+
+                        updatePulseDisplay();
+                    }
+                );
+
+            document
+                .getElementById('scaleSelect')
+                .addEventListener(
+                    'change',
+                    (e) => {
+                        currentScale = e.target.value;
+
+                        updateCodePadSound(
+                            codeNormX,
+                            codeNormY,
+                            false
+                        );
+
+                        pulseChordMidis =
+                            computePulseChordFromXY(
+                                pulseNormX,
+                                pulseNormY
+                            );
+
+                        updatePulseDisplay();
+                    }
+                );
+
+            document
+                .getElementById('padVolSlider')
+                .addEventListener(
+                    'input',
+                    (e) => {
+                        padMasterVol =
+                            parseInt(
+                                e.target.value,
+                                10
+                            ) / 100.0;
+
+                        document
+                            .getElementById('padVolVal')
+                            .textContent =
+                            `${e.target.value}%`;
+
+                        if (
+                            isCodePadOn &&
+                            isCodeSoundActive &&
+                            audioCtx
+                        ) {
+                            padEnvGain.gain.setTargetAtTime(
+                                Math.max(
+                                    0.001,
+                                    padMasterVol * 0.85
+                                ),
+                                audioCtx.currentTime,
+                                0.08
+                            );
+                        }
+                    }
+                );
+
+            document
+                .getElementById('reverbSlider')
+                .addEventListener(
+                    'input',
+                    (e) => {
+                        reverbAmount =
+                            parseInt(
+                                e.target.value,
+                                10
+                            ) / 100.0;
+
+                        document
+                            .getElementById('reverbVal')
+                            .textContent =
+                            `${e.target.value}%`;
+
+                        if (
+                            wetBus &&
+                            audioCtx
+                        ) {
+                            wetBus.gain.setTargetAtTime(
+                                reverbAmount * 0.85,
+                                audioCtx.currentTime,
+                                0.08
+                            );
+                        }
+                    }
+                );
+
+            const btnPulseMode =
+                document.getElementById(
+                    'btnPulseMode'
+                );
+
+            btnPulseMode.addEventListener(
+                'click',
+                () => {
+                    if (
+                        pulseMode ===
+                        'arpeggio'
+                    ) {
+                        pulseMode = 'single';
+
+                        btnPulseMode.textContent =
+                            'モード: 単音連打';
+                    } else {
+                        pulseMode = 'arpeggio';
+
+                        btnPulseMode.textContent =
+                            'モード: アルペジオ';
+                    }
+                }
+            );
+
+            const btnPulsePitchMode =
+                document.getElementById(
+                    'btnPulsePitchMode'
+                );
+
+            const pulseModeInfo =
+                document.getElementById(
+                    'pulseModeInfo'
+                );
+
+            btnPulsePitchMode.addEventListener(
+                'click',
+                () => {
+                    if (
+                        pulsePitchMode ===
+                        'follow'
+                    ) {
+                        /*
+                         * 追従 → 分離。
+                         *
+                         * 現在鳴っているパルスの音程を
+                         * そのまま保持する。
+                         */
+                        pulseChordMidis =
+                            [
+                                ...getPulseSourceChord()
+                            ];
+
+                        pulsePitchMode =
+                            'separate';
+
+                        btnPulsePitchMode.textContent =
+                            '音程: 分離';
+
+                        pulseModeInfo.textContent =
+                            '分離: パルスパッドの音程を使用';
+
+                        updatePulseDisplay();
+                    } else {
+                        /*
+                         * 分離 → 追従。
+                         *
+                         * コードがONなら即座に
+                         * コードパッドの位置へ固定。
+                         */
+                        pulsePitchMode =
+                            'follow';
+
+                        if (isCodePitchSourceActive) {
+                            syncPulsePadToCodePad();
+                        }
+
+                        btnPulsePitchMode.textContent =
+                            '音程: 追従';
+
+                        pulseModeInfo.textContent =
+                            '追従: コードパッドの音程を使用';
+
+                        updatePulseDisplay();
+                    }
+                }
+            );
+
+            const btnWaveFreeze =
+                document.getElementById(
+                    'btnWaveFreeze'
+                );
+
+            btnWaveFreeze.addEventListener(
+                'click',
+                () => {
+                    if (!isPulsePlaying) {
+                        return;
+                    }
+
+                    if (!isWaveFrozen) {
+                        frozenWaveAmp =
+                            getLiveWaveAmplitude(
+                                audioCtx.currentTime
+                            );
+
+                        frozenWavePhase =
+                            getLiveWavePhase(
+                                audioCtx.currentTime
+                            );
+
+                        isWaveFrozen = true;
+
+                        btnWaveFreeze.classList.add('active');
+
+                        btnWaveFreeze.textContent =
+                            '▶ 波を再開 (レジューム)';
+
+                        updateWaveVisual();
+                    } else {
+                        waveStartTime =
+                            audioCtx.currentTime -
+                            (
+                                frozenWavePhase /
+                                (Math.PI * 2)
+                            ) *
+                            wavePeriodSec;
+
+                        frozenElapsedTime = 0;
+                        isWaveFrozen = false;
+
+                        btnWaveFreeze.classList.remove('active');
+
+                        btnWaveFreeze.textContent =
+                            '⏸ 波をストップ (ホールド)';
+                    }
+                }
+            );
+
+            document
+                .getElementById('waveSpeedSlider')
+                .addEventListener(
+                    'input',
+                    (e) => {
+                        const newPeriod =
+                            parseFloat(
+                                e.target.value
+                            );
+
+                        if (
+                            !isWaveFrozen &&
+                            audioCtx &&
+                            isPulsePlaying
+                        ) {
+                            const now =
+                                audioCtx.currentTime;
+
+                            const currentPhase =
+                                getLiveWavePhase(now);
+
+                            wavePeriodSec =
+                                newPeriod;
+
+                            waveStartTime =
+                                now -
+                                (
+                                    currentPhase /
+                                    (Math.PI * 2)
+                                ) *
+                                wavePeriodSec;
+
+                            frozenElapsedTime = 0;
+                        } else {
+                            wavePeriodSec =
+                                newPeriod;
+                        }
+
+                        document
+                            .getElementById('waveSpeedVal')
+                            .textContent =
+                            `${wavePeriodSec.toFixed(1)} 秒周期`;
+                    }
+                );
+
+            document
+                .getElementById('pulseMaxVolSlider')
+                .addEventListener(
+                    'input',
+                    (e) => {
+                        pulseMaxVol =
+                            parseInt(
+                                e.target.value,
+                                10
+                            ) / 100.0;
+
+                        document
+                            .getElementById('pulseMaxVolVal')
+                            .textContent =
+                            `${e.target.value}%`;
+                    }
+                );
+
+            updatePulseDisplay();
+        }
+    );
+</script>
+
+</body>
+</html>
